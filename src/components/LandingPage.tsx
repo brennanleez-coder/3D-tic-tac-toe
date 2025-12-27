@@ -127,7 +127,7 @@ function createPresetState(
       }
     } else if (currentPlayer === opponent && opponentIdx < opponentMovesToUse.length) {
       const pos = opponentMovesToUse[opponentIdx];
-      if (board[pos.x][pos.y][pos.z] === null) {
+    if (board[pos.x][pos.y][pos.z] === null) {
         gameSequence.push({ player: opponent, position: pos });
         board[pos.x][pos.y][pos.z] = opponent;
         opponentIdx++;
@@ -301,21 +301,21 @@ export default function LandingPage({ onStartGame }: LandingPageProps) {
       {/* First Section - Full Viewport */}
       <div className="relative w-full min-h-screen flex flex-col items-center justify-center z-10 pointer-events-none px-4 sm:px-6 md:px-8 lg:px-12" style={{ scrollSnapAlign: 'start' }}>
         <div className="w-full max-w-[640px] sm:max-w-3xl lg:max-w-4xl mx-auto text-center animate-fade-in">
-          {/* Title */}
+            {/* Title */}
           <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent drop-shadow-2xl mb-2 sm:mb-3">
-            QuadCube
-          </h1>
-          
-          {/* Subtitle */}
+              QuadCube
+            </h1>
+            
+            {/* Subtitle */}
           <p className="text-gray-200 text-sm sm:text-base md:text-lg max-w-3xl mx-auto text-center leading-relaxed mb-4 sm:mb-5 md:mb-6">
-            Experience 3D Tic Tac Toe in a stunning <span className="text-purple-300 font-semibold">4×4×4</span> three-dimensional space. Get 4 in a row across any dimension to win!
-          </p>
+              Experience 3D Tic Tac Toe in a stunning <span className="text-purple-300 font-semibold">4×4×4</span> three-dimensional space. Get 4 in a row across any dimension to win!
+            </p>
 
-          {/* Rules Section */}
+            {/* Rules Section */}
           <div className="pointer-events-auto">
             <h2 className="text-base sm:text-xl md:text-2xl font-bold text-white mb-3 sm:mb-4 text-center">
-              How to Play
-            </h2>
+                How to Play
+              </h2>
             <div className="flex flex-col gap-2 sm:gap-3 md:gap-4 max-w-2xl mx-auto">
                 {/* Rule 1 */}
                 <div className="flex items-start gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl bg-gradient-to-r from-purple-500/15 to-pink-500/10 border border-purple-500/25 shadow-lg">
@@ -363,16 +363,16 @@ export default function LandingPage({ onStartGame }: LandingPageProps) {
               </div>
             </div>
 
-          {/* Start Button */}
+            {/* Start Button */}
           <div className="mt-4 sm:mt-6 md:mt-8 flex justify-center pointer-events-auto">
-            <Button
-              onClick={handleStart}
-              variant="gradient"
-              size="lg"
+              <Button
+                onClick={handleStart}
+                variant="gradient"
+                size="lg"
               className="text-base sm:text-lg md:text-xl w-full sm:w-auto px-6 sm:px-8 md:px-10 py-4 sm:py-5 md:py-6"
-            >
-              Start Game →
-            </Button>
+              >
+                Start Game →
+              </Button>
           </div>
         </div>
 
@@ -390,7 +390,7 @@ export default function LandingPage({ onStartGame }: LandingPageProps) {
       {/* Second Section - 3D Grid Preview Area - Full Viewport */}
       <div className="relative w-full min-h-screen flex flex-col items-center justify-center z-[1] pointer-events-none px-4 sm:px-6 md:px-8 lg:px-12" style={{ scrollSnapAlign: 'start' }}>
         <div className="w-full max-w-6xl mx-auto flex flex-col items-center gap-4 sm:gap-6 md:gap-8">
-          {/* Text header */}
+        {/* Text header */}
           <div className="w-full text-center pointer-events-none">
             <h2 className="text-2xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-2 sm:mb-3">
               Explore the 3D Grid
@@ -398,48 +398,48 @@ export default function LandingPage({ onStartGame }: LandingPageProps) {
             <p className="text-gray-200 text-sm sm:text-base md:text-lg max-w-2xl mx-auto">
               Rotate, zoom, and explore the interactive 3D tic tac toe board
             </p>
-          </div>
+        </div>
 
-          {/* Preset Buttons */}
+        {/* Preset Buttons */}
           <div className="pointer-events-auto w-full max-w-5xl mx-auto">
             <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-4 md:gap-6">
-              <Button
-                onClick={() => setSelectedPreset('preset1')}
-                variant={selectedPreset === 'preset1' ? 'default' : 'ghost'}
-                size="lg"
+            <Button
+              onClick={() => setSelectedPreset('preset1')}
+              variant={selectedPreset === 'preset1' ? 'default' : 'ghost'}
+              size="lg"
                 className="text-sm sm:text-base md:text-lg px-6 sm:px-8 py-3"
-              >
-                Single Plane Win
-              </Button>
-              <Button
-                onClick={() => setSelectedPreset('preset2')}
-                variant={selectedPreset === 'preset2' ? 'default' : 'ghost'}
-                size="lg"
+            >
+              Single Plane Win
+            </Button>
+            <Button
+              onClick={() => setSelectedPreset('preset2')}
+              variant={selectedPreset === 'preset2' ? 'default' : 'ghost'}
+              size="lg"
                 className="text-sm sm:text-base md:text-lg px-6 sm:px-8 py-3"
-              >
-                Multi-Plane Diagonal
-              </Button>
-              <Button
-                onClick={() => setSelectedPreset('preset3')}
-                variant={selectedPreset === 'preset3' ? 'default' : 'ghost'}
-                size="lg"
+            >
+              Multi-Plane Diagonal
+            </Button>
+            <Button
+              onClick={() => setSelectedPreset('preset3')}
+              variant={selectedPreset === 'preset3' ? 'default' : 'ghost'}
+              size="lg"
                 className="text-sm sm:text-base md:text-lg px-6 sm:px-8 py-3"
-              >
-                Multi-Plane Straight
-              </Button>
-            </div>
+            >
+              Multi-Plane Straight
+            </Button>
           </div>
+        </div>
 
-          {/* Resizable 3D Canvas Container */}
+        {/* Resizable 3D Canvas Container */}
           <div className="w-full max-w-6xl pointer-events-auto flex-1 flex items-center justify-center">
-            <div 
+          <div 
               className="relative bg-black/25 backdrop-blur-md rounded-2xl border border-purple-500/35 shadow-[0_20px_60px_rgba(0,0,0,0.45)] overflow-hidden w-full"
-              style={{ 
+            style={{ 
                 height: '60vh',
                 minHeight: '400px',
                 maxHeight: '700px',
-              }}
-            >
+            }}
+          >
             <Canvas 
               className="w-full h-full"
               gl={{ 
@@ -481,10 +481,10 @@ export default function LandingPage({ onStartGame }: LandingPageProps) {
                 <path d="M22 22H20V20H22V22ZM22 18H20V16H22V18ZM18 22H16V20H18V22ZM18 18H16V16H18V18ZM14 22H12V20H14V22ZM22 14H20V12H22V14Z"/>
               </svg>
             </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
       {/* Floating Back to Top Button - Always visible when scrolled */}
       {showScrollToTop && (

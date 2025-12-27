@@ -6,7 +6,7 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import Cell from './Cell';
 import { Player, Position } from '@/types/game';
-import { ExtendedGameState, Threat, isWinningPosition, isThreatPosition } from '@/lib/gameLogic';
+import { ExtendedGameState, Move, isWinningPosition } from '@/lib/gameLogic';
 
 interface Board3DProps {
   gameState: ExtendedGameState;
@@ -14,6 +14,7 @@ interface Board3DProps {
   visibleLayers: boolean[];
   explodeAmount?: number;
   highlightLayer?: number | null;
+  recentlyRemovedMove?: Move | null;
 }
 
 const BOARD_SIZE = 4;
@@ -120,6 +121,7 @@ export default function Board3D({
   visibleLayers,
   explodeAmount = 0,
   highlightLayer = null,
+  recentlyRemovedMove = null,
 }: Board3DProps) {
   const explodeSpacing = (explodeAmount / 100) * 2;
   const layerSpacing = BASE_LAYER_SPACING + explodeSpacing;
@@ -175,11 +177,18 @@ export default function Board3D({
       {/* Render visible cells */}
       {cells.map(({ position, worldPosition, layer }) => {
         const isWinningCell = isWinningPosition(gameState.winningLine, position);
-        const threat = isThreatPosition(gameState.threats, position);
         const isNewlyPlaced: boolean = !!(gameState.lastMovePosition && 
           position.x === gameState.lastMovePosition.x &&
           position.y === gameState.lastMovePosition.y &&
           position.z === gameState.lastMovePosition.z);
+        const removedForCell =
+          recentlyRemovedMove &&
+          recentlyRemovedMove.position &&
+          position.x === recentlyRemovedMove.position.x &&
+          position.y === recentlyRemovedMove.position.y &&
+          position.z === recentlyRemovedMove.position.z
+            ? recentlyRemovedMove
+            : null;
         
         // Dim non-winning cells when game is won
         const isDimmed = isGameWon && !isWinningCell;
@@ -194,10 +203,12 @@ export default function Board3D({
             isGameOver={gameState.status !== 'playing'}
             onClick={onCellClick}
             isHighlighted={highlightLayer === layer}
-            threatPlayer={threat?.player || null}
+            threatPlayer={null}
             currentPlayer={gameState.currentPlayer}
             isNewlyPlaced={isNewlyPlaced}
             isDimmed={isDimmed}
+            recentlyRemovedPlayer={removedForCell?.player || null}
+            recentlyRemovedId={removedForCell?.timestamp || null}
           />
         );
       })}

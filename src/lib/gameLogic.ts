@@ -5,8 +5,10 @@ const BOARD_SIZE = 4;
 // Move record for history
 export interface Move {
   player: Player;
-  position: Position;
+  position?: Position; // Optional for non-move events like timeouts
   timestamp: number;
+  type?: 'move' | 'skip';
+  reason?: 'timeout';
 }
 
 // Threat: a line where one player has 3 pieces and 1 empty
@@ -246,6 +248,7 @@ export function makeMove(
     player: state.currentPlayer,
     position,
     timestamp: Date.now(),
+    type: 'move',
   };
 
   const winningLine = checkWinner(newBoard);
@@ -273,23 +276,27 @@ export function undoMove(state: ExtendedGameState): ExtendedGameState {
   if (state.status === 'win') return state; // Can't undo after win
 
   const newHistory = state.moveHistory.slice(0, -1);
-  
+
+  // Only apply actual moves to the board
+  const appliedMoves = newHistory.filter((move) => move.type !== 'skip' && move.position);
+
   // Rebuild board from history
   const newBoard = createEmptyBoard();
-  for (const move of newHistory) {
+  for (const move of appliedMoves) {
+    if (!move.position) continue;
     const { x, y, z } = move.position;
     newBoard[x][y][z] = move.player;
   }
 
-  const lastMove = newHistory[newHistory.length - 1];
+  const lastMove = appliedMoves[appliedMoves.length - 1];
   const threats = detectThreats(newBoard);
 
   return {
     board: newBoard,
-    currentPlayer: state.moveHistory[state.moveHistory.length - 1].player,
+    currentPlayer: lastMove ? (lastMove.player === 'X' ? 'O' : 'X') : 'X',
     status: 'playing',
     winningLine: null,
-    moveCount: newHistory.length,
+    moveCount: appliedMoves.length,
     moveHistory: newHistory,
     threats,
     lastMovePosition: lastMove?.position || null,

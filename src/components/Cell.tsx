@@ -17,6 +17,8 @@ interface CellProps {
   currentPlayer: Player;
   isNewlyPlaced?: boolean;
   isDimmed?: boolean;
+  recentlyRemovedPlayer?: Player | null;
+  recentlyRemovedId?: number | null;
 }
 
 // Easing function for bounce effect
@@ -154,6 +156,50 @@ function OMarker({ isWinning, isNewlyPlaced, isDimmed }: { isWinning: boolean; i
         roughness={0.3}
         transparent={isDimmed}
         opacity={opacity}
+      />
+    </mesh>
+  );
+}
+
+// Brief fade/scale down marker for removals during replay stepping backward
+function RemovedMarker({ player, removalId }: { player: Player; removalId: number }) {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const progressRef = useRef(0);
+  const color = player === 'X' ? '#FF6B6B' : '#4ECDC4';
+
+  useEffect(() => {
+    progressRef.current = 0;
+    if (meshRef.current) {
+      meshRef.current.visible = true;
+      meshRef.current.scale.setScalar(1);
+      const mat = meshRef.current.material as THREE.MeshStandardMaterial;
+      mat.opacity = 0.6;
+    }
+  }, [removalId]);
+
+  useFrame((_, delta) => {
+    if (!meshRef.current) return;
+    progressRef.current = Math.min(1, progressRef.current + delta * 2.5);
+    const scale = Math.max(0, 1 - progressRef.current);
+    meshRef.current.scale.setScalar(scale);
+    const mat = meshRef.current.material as THREE.MeshStandardMaterial;
+    mat.opacity = Math.max(0, 0.6 * (1 - progressRef.current));
+    if (progressRef.current >= 1) {
+      meshRef.current.visible = false;
+    }
+  });
+
+  return (
+    <mesh ref={meshRef}>
+      <sphereGeometry args={[0.35, 14, 14]} />
+      <meshStandardMaterial
+        color={color}
+        emissive={color}
+        emissiveIntensity={0.2}
+        transparent
+        opacity={0.6}
+        metalness={0.3}
+        roughness={0.5}
       />
     </mesh>
   );
@@ -342,6 +388,8 @@ export default function Cell({
   currentPlayer,
   isNewlyPlaced = false,
   isDimmed = false,
+  recentlyRemovedPlayer = null,
+  recentlyRemovedId = null,
 }: CellProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [wasNewlyPlaced, setWasNewlyPlaced] = useState(isNewlyPlaced);
@@ -377,6 +425,13 @@ export default function Cell({
         document.body.style.cursor = 'default';
       }}
     >
+      {value === null && recentlyRemovedPlayer && recentlyRemovedId !== null && (
+        <RemovedMarker
+          key={`removed-${position.x}-${position.y}-${position.z}-${recentlyRemovedId}`}
+          player={recentlyRemovedPlayer}
+          removalId={recentlyRemovedId}
+        />
+      )}
       {value === null && (
         <EmptyCellWrapper 
           isGameOver={isGameOver} 

@@ -47,11 +47,12 @@ function LandingCamera({ isMobile }: { isMobile: boolean }) {
     if (shouldAnimate) {
       timeRef.current += 0.005;
       
-      // Gentle motion from side view - slight vertical movement
-      const baseX = isMobile ? 12 : 10;
-      const x = baseX + Math.sin(timeRef.current * 0.5) * 1;
-      const y = Math.sin(timeRef.current) * 2;
-      const z = Math.cos(timeRef.current * 0.3) * 1;
+      // Gentle motion from isometric view - slight circular movement
+      const baseDistance = isMobile ? 12 : 10;
+      const angle = timeRef.current * 0.3;
+      const x = baseDistance * Math.cos(angle) + Math.sin(timeRef.current * 0.5) * 0.5;
+      const y = baseDistance * 0.7 + Math.sin(timeRef.current) * 1;
+      const z = baseDistance * Math.sin(angle) + Math.cos(timeRef.current * 0.3) * 0.5;
       
       camera.position.lerp(new THREE.Vector3(x, y, z), 0.05);
       camera.lookAt(0, 0, 0);
@@ -164,7 +165,7 @@ export default function LandingPage({ onStartGame }: LandingPageProps) {
   const [showGrid, setShowGrid] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [showScrollToTop, setShowScrollToTop] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState<PresetType>('empty');
+  const [selectedPreset, setSelectedPreset] = useState<PresetType>('preset2');
   const containerRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   
@@ -229,114 +230,73 @@ export default function LandingPage({ onStartGame }: LandingPageProps) {
       ref={containerRef}
       className={`relative w-full min-h-[200vh] bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 transition-opacity duration-500 ${fadeOut ? 'opacity-0' : 'opacity-100'}`}
     >
-      {/* 3D Canvas - Reveals on scroll */}
-      {showGrid && (
-        <div 
-          className="fixed inset-0 z-[5] pointer-events-auto"
-          style={{ opacity: scrollProgress }}
-        >
-          {/* Text overlay - positioned at top */}
-          <div className="absolute top-24 sm:top-28 left-0 right-0 text-center px-4 z-[10] pointer-events-none">
-            <div className="bg-black/40 backdrop-blur-sm rounded-2xl px-6 py-4 inline-block border border-purple-500/20">
-              <h2 className="text-2xl sm:text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
-                Explore the 3D Grid
-              </h2>
-              <p className="text-gray-300 text-sm sm:text-base max-w-xl">
-                Rotate, zoom, and explore the interactive board
-              </p>
-            </div>
-          </div>
-
-          {/* Preset Buttons - Overlay on top of Canvas */}
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[10] pointer-events-auto px-4 w-full max-w-4xl">
-            <div className="bg-black/70 backdrop-blur-xl rounded-2xl px-4 py-3 border border-purple-500/40 shadow-2xl">
-              <p className="text-gray-300 text-xs sm:text-sm mb-3 text-center font-medium">
-                Explore Winning Patterns
-              </p>
-              <div className="flex flex-wrap justify-center items-center gap-2 sm:gap-3">
-                <Button
-                  onClick={() => setSelectedPreset('empty')}
-                  variant={selectedPreset === 'empty' ? 'default' : 'ghost'}
-                  size="default"
-                >
-                  Clear
-                </Button>
-                <Button
-                  onClick={() => setSelectedPreset('preset1')}
-                  variant={selectedPreset === 'preset1' ? 'default' : 'ghost'}
-                  size="default"
-                >
-                  Single Plane Win
-                </Button>
-                <Button
-                  onClick={() => setSelectedPreset('preset2')}
-                  variant={selectedPreset === 'preset2' ? 'default' : 'ghost'}
-                  size="default"
-                >
-                  Multi-Plane Diagonal
-                </Button>
-                <Button
-                  onClick={() => setSelectedPreset('preset3')}
-                  variant={selectedPreset === 'preset3' ? 'default' : 'ghost'}
-                  size="default"
-                >
-                  Multi-Plane Straight
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <Canvas 
-            className="absolute inset-0 pointer-events-auto"
-            gl={{ 
-              antialias: true,
-              alpha: true,
-              powerPreference: 'default',
-            }}
-            dpr={[1, 2]}
-            onCreated={({ gl }) => {
-              gl.setClearColor(0x000000, 0);
-            }}
-          >
-            <PerspectiveCamera 
-              makeDefault 
-              position={isMobile ? [12, 0, 0] : [10, 0, 0]} 
-              fov={isMobile ? 45 : 50} 
-            />
-            <LandingCamera isMobile={isMobile} />
-
-            {/* Lighting */}
-            <ambientLight intensity={0.6} />
-            <directionalLight position={[10, 10, 10]} intensity={1} />
-            <directionalLight position={[-10, -5, -10]} intensity={0.4} color="#8B5CF6" />
-            <pointLight position={[0, 5, 0]} intensity={0.6} color="#EC4899" />
-
-            {/* Game Board - Shows selected preset */}
-            <Board3D 
-              gameState={currentGameState} 
-              onCellClick={() => {}} 
-              visibleLayers={[true, true, true, true]}
-              explodeAmount={30}
-              highlightLayer={null}
-            />
-          </Canvas>
-        </div>
-      )}
 
       {/* Overlay Content - First Section */}
       <div className="relative min-h-screen flex flex-col items-center justify-center z-10 pointer-events-none">
         <div className="text-center space-y-6 px-4 animate-fade-in">
           {/* Title */}
           <h1 className="text-5xl sm:text-7xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent drop-shadow-2xl">
-            3D Tic-Tac-Toe
+            QuadCube
           </h1>
           
           {/* Subtitle */}
           <p className="text-gray-300 text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed">
-            Experience the classic game in a stunning <span className="text-purple-400 font-semibold">4×4×4</span> three-dimensional space
+            Experience 3D Tic Tac Toe in a stunning <span className="text-purple-400 font-semibold">4×4×4</span> three-dimensional space. Get 4 in a row across any dimension to win!
           </p>
 
-          
+          {/* Rules Section */}
+          <div className="mt-12 max-w-3xl mx-auto pointer-events-auto">
+            <div className="bg-black/40 backdrop-blur-xl rounded-2xl p-6 sm:p-8 border border-purple-500/30 shadow-2xl">
+              <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-6 text-center">
+                How to Play
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Rule 1 */}
+                <div className="flex items-start gap-3 p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/15 transition-colors">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-sm">
+                    1
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-white font-semibold mb-1">Take Turns</h3>
+                    <p className="text-gray-400 text-sm">Players alternate placing X and O on the 4×4×4 grid</p>
+                  </div>
+                </div>
+
+                {/* Rule 2 */}
+                <div className="flex items-start gap-3 p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/15 transition-colors">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-sm">
+                    2
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-white font-semibold mb-1">Get 4 in a Row</h3>
+                    <p className="text-gray-400 text-sm">Win by connecting 4 pieces horizontally, vertically, diagonally, or through 3D space</p>
+                  </div>
+                </div>
+
+                {/* Rule 3 */}
+                <div className="flex items-start gap-3 p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/15 transition-colors">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-sm">
+                    3
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-white font-semibold mb-1">Explore 3D Space</h3>
+                    <p className="text-gray-400 text-sm">Rotate and zoom to see all layers and plan your strategy</p>
+                  </div>
+                </div>
+
+                {/* Rule 4 */}
+                <div className="flex items-start gap-3 p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/15 transition-colors">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-sm">
+                    4
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-white font-semibold mb-1">Think Strategically</h3>
+                    <p className="text-gray-400 text-sm">Block your opponent while building your own winning line</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* Start Button */}
           <div className="mt-12 pointer-events-auto">
@@ -370,9 +330,103 @@ export default function LandingPage({ onStartGame }: LandingPageProps) {
       </div>
 
       {/* Second Section - 3D Grid Preview Area */}
-      <div className="relative min-h-screen flex flex-col items-center justify-center z-[1] pointer-events-none">
-        {/* 3D Grid takes center stage - full viewport height */}
-        <div className="w-full flex-1 pointer-events-none" style={{ minHeight: '70vh' }} />
+      <div className="relative min-h-screen flex flex-col items-center justify-start pt-32 sm:pt-40 pb-24 z-[1] pointer-events-none px-4">
+        {/* Text header */}
+        <div className="text-center mb-12 pointer-events-none">
+          <div className="bg-black/40 backdrop-blur-sm rounded-2xl px-8 py-6 inline-block border border-purple-500/20">
+            <h2 className="text-3xl sm:text-5xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-3">
+              Explore the 3D Grid
+            </h2>
+            <p className="text-gray-300 text-base sm:text-lg max-w-xl">
+              Rotate, zoom, and explore the interactive 3D tic tac toe board
+            </p>
+          </div>
+        </div>
+
+        {/* Preset Buttons */}
+        <div className="mb-12 pointer-events-auto px-4 w-full max-w-4xl">
+          <div className="bg-black/70 backdrop-blur-xl rounded-2xl px-6 py-4 border border-purple-500/40 shadow-2xl">
+            <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-4">
+              <Button
+                onClick={() => setSelectedPreset('preset1')}
+                variant={selectedPreset === 'preset1' ? 'default' : 'ghost'}
+                size="default"
+              >
+                Single Plane Win
+              </Button>
+              <Button
+                onClick={() => setSelectedPreset('preset2')}
+                variant={selectedPreset === 'preset2' ? 'default' : 'ghost'}
+                size="default"
+              >
+                Multi-Plane Diagonal
+              </Button>
+              <Button
+                onClick={() => setSelectedPreset('preset3')}
+                variant={selectedPreset === 'preset3' ? 'default' : 'ghost'}
+                size="default"
+              >
+                Multi-Plane Straight
+              </Button>
+            </div>
+            </div>
+          </div>
+
+        {/* Resizable 3D Canvas Container */}
+        <div className="w-full max-w-6xl pointer-events-auto">
+          <div 
+            className="relative bg-black/20 backdrop-blur-sm rounded-2xl border border-purple-500/30 shadow-2xl overflow-hidden"
+            style={{ 
+              width: '100%',
+              height: '700px',
+              minHeight: '500px',
+              maxHeight: '90vh',
+              resize: 'both',
+            }}
+          >
+          <Canvas 
+              className="w-full h-full"
+            gl={{ 
+              antialias: true,
+              alpha: true,
+              powerPreference: 'default',
+            }}
+            dpr={[1, 2]}
+            onCreated={({ gl }) => {
+                gl.setClearColor(0x000000, 0);
+            }}
+          >
+            <PerspectiveCamera 
+              makeDefault 
+              position={isMobile ? [10, 8, 10] : [8, 6, 8]} 
+              fov={isMobile ? 45 : 50} 
+            />
+            <LandingCamera isMobile={isMobile} />
+
+            {/* Lighting */}
+            <ambientLight intensity={0.6} />
+            <directionalLight position={[10, 10, 10]} intensity={1} />
+            <directionalLight position={[-10, -5, -10]} intensity={0.4} color="#8B5CF6" />
+            <pointLight position={[0, 5, 0]} intensity={0.6} color="#EC4899" />
+
+            {/* Game Board - Shows selected preset */}
+            <Board3D 
+              gameState={currentGameState} 
+              onCellClick={() => {}} 
+              visibleLayers={[true, true, true, true]}
+              explodeAmount={30}
+              highlightLayer={null}
+            />
+          </Canvas>
+            
+            {/* Resize indicator */}
+            <div className="absolute bottom-2 right-2 text-gray-500 text-xs pointer-events-none">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M22 22H20V20H22V22ZM22 18H20V16H22V18ZM18 22H16V20H18V22ZM18 18H16V16H18V18ZM14 22H12V20H14V22ZM22 14H20V12H22V14Z"/>
+              </svg>
+        </div>
+          </div>
+        </div>
       </div>
 
       {/* Floating Back to Top Button - Always visible when scrolled */}

@@ -493,7 +493,7 @@ function GameUI({
               onClick={() => router.push('/')}
               className="text-base sm:text-xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent hover:opacity-80 transition-opacity cursor-pointer"
             >
-              3D Tic-Tac-Toe
+              QuadCube
             </button>
             <div className="hidden sm:flex items-center gap-1.5 bg-black/40 backdrop-blur-sm rounded-full px-3 py-1.5">
               <span className="text-xs text-gray-400">{moveCount}</span>

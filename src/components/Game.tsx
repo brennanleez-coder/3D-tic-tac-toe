@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import Board3D from './Board3D';
 import { Position } from '@/types/game';
 import { ExtendedGameState, createInitialState, makeMove, undoMove } from '@/lib/gameLogic';
-import { Sheet, SheetContent, SheetOverlay } from './ui/sheet';
+import { Sheet, SheetContent } from './ui/sheet';
 import AnimatedBackground from './AnimatedBackground';
 
 // Hook to detect mobile
@@ -125,7 +125,6 @@ export default function Game() {
   const [gameState, setGameState] = useState<ExtendedGameState>(createInitialState);
   const [spreadPreset, setSpreadPreset] = useState<SpreadPreset>('normal');
   const [cameraPreset, setCameraPreset] = useState<CameraPreset | null>(null);
-  const [hintsEnabled, setHintsEnabled] = useState(false);
   const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
   const [showMobileHint, setShowMobileHint] = useState(true);
   const isMobile = useIsMobile();
@@ -203,16 +202,14 @@ export default function Game() {
         spreadPreset={spreadPreset}
         setSpreadPreset={setSpreadPreset}
         onCameraPreset={handleCameraPreset}
-        hintsEnabled={hintsEnabled}
-        setHintsEnabled={setHintsEnabled}
         mobileControlsOpen={mobileControlsOpen}
         setMobileControlsOpen={setMobileControlsOpen}
       />
 
       {/* Mobile Interaction Hint */}
       {isMobile && showMobileHint && (
-        <div className="sm:hidden absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-auto z-50 max-w-[90%]">
-          <div className="bg-gradient-to-b from-black/90 to-black/80 backdrop-blur-xl rounded-xl p-4 border border-purple-500/40 shadow-2xl">
+        <div className="sm:hidden absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-auto z-50 max-w-[90%] px-4">
+          <div className="bg-gradient-to-b from-black/90 to-black/80 backdrop-blur-xl rounded-xl p-4 sm:p-5 border border-purple-500/40 shadow-2xl">
             <div className="flex items-start gap-3">
               <div className="flex-1">
                 <p className="text-white text-sm font-medium mb-1">💡 View Controls</p>
@@ -233,9 +230,9 @@ export default function Game() {
       )}
 
       {/* Right Side - Controls & Info Panel (Desktop) */}
-      <div className="hidden sm:block absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 pointer-events-auto space-y-3">
+      <div className="hidden sm:block absolute right-3 sm:right-4 md:right-5 top-1/2 -translate-y-1/2 pointer-events-auto space-y-3">
         {/* Combined Info Panel */}
-        <div className="bg-gradient-to-b from-black/60 to-black/40 backdrop-blur-xl rounded-2xl p-8 border border-purple-500/30 shadow-2xl shadow-purple-900/20">
+        <div className="bg-gradient-to-b from-black/60 to-black/40 backdrop-blur-xl rounded-2xl p-4 sm:p-6 md:p-8 border border-purple-500/30 shadow-2xl shadow-purple-900/20">
           {/* Spread Presets */}
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-3">
@@ -278,46 +275,6 @@ export default function Game() {
             </div>
           </div>
 
-          {/* Hints Toggle */}
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-yellow-400 text-sm">💡</span>
-              <p className="text-xs text-gray-300 font-semibold uppercase tracking-wider">Hints</p>
-            </div>
-            <button
-              onClick={() => setHintsEnabled(!hintsEnabled)}
-              className={`w-full px-3 py-2 text-xs rounded-lg transition-all font-semibold ${
-                hintsEnabled
-                  ? 'bg-gradient-to-r from-yellow-600 to-orange-600 text-white shadow-lg'
-                  : 'bg-black/50 text-gray-500 hover:bg-black/70'
-              }`}
-            >
-              {hintsEnabled ? 'ON' : 'OFF'}
-            </button>
-          </div>
-
-          {/* Layer Legend */}
-          <div className="pt-4 border-t border-purple-500/20 mb-6">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-pink-400 text-sm">🎯</span>
-              <p className="text-xs text-gray-300 font-semibold uppercase tracking-wider">Layers</p>
-            </div>
-            <div className="grid grid-cols-2 gap-2.5">
-              {[3, 2, 1, 0].map((i) => {
-                const layerColors = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#95E1D3'];
-                return (
-                  <div key={i} className="flex items-center gap-2 bg-black/40 rounded-lg px-3 py-2 hover:bg-black/60 transition-colors">
-                    <div 
-                      className="w-3 h-3 rounded-md shadow-md ring-1 ring-white/10"
-                      style={{ backgroundColor: layerColors[i] }}
-                    />
-                    <span className="text-xs text-gray-300 font-medium">Layer {i + 1}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
           {/* Move History */}
           <div className="pt-4 border-t border-purple-500/20">
             <div className="flex items-center gap-2 mb-3">
@@ -345,10 +302,9 @@ export default function Game() {
 
       {/* Mobile Controls Sheet - Outside GameUI for proper z-index */}
       <Sheet open={mobileControlsOpen} onOpenChange={setMobileControlsOpen}>
-        <SheetOverlay onClick={() => setMobileControlsOpen(false)} />
-        <SheetContent side="bottom" className="sm:hidden flex flex-col">
+        <SheetContent side="bottom" className="sm:hidden flex flex-col bg-gradient-to-b from-black/95 to-black/90 backdrop-blur-xl border-purple-500/30 [&>button]:hidden p-0">
           {/* Header with Close Button */}
-          <div className="flex items-center justify-between px-5 pt-5 pb-3 flex-shrink-0">
+          <div className="flex items-center justify-between px-4 sm:px-5 pt-4 sm:pt-5 pb-2 flex-shrink-0">
             <h2 className="text-base font-bold text-white">Settings</h2>
             <button
               onClick={() => setMobileControlsOpen(false)}
@@ -359,14 +315,14 @@ export default function Game() {
             </button>
           </div>
           {/* Handle */}
-          <div className="flex justify-center pb-3 flex-shrink-0">
+          <div className="flex justify-center pb-2 sm:pb-3 flex-shrink-0">
             <div className="w-12 h-1.5 bg-gray-600 rounded-full" />
           </div>
 
           {/* Content - Scrollable */}
-          <div className="px-5 pb-8 overflow-y-auto flex-1 min-h-0">
+          <div className="px-4 sm:px-5 pb-6 sm:pb-8 overflow-y-auto flex-1 min-h-0">
             {/* Spread */}
-            <div className="mb-5">
+            <div className="mb-4 sm:mb-5">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-purple-400 text-base">📐</span>
                 <p className="text-xs text-gray-200 font-semibold uppercase tracking-wider">Spread</p>
@@ -392,7 +348,7 @@ export default function Game() {
             </div>
 
             {/* Camera */}
-            <div className="mb-5">
+            <div className="mb-4 sm:mb-5">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-cyan-400 text-base">📷</span>
                 <p className="text-xs text-gray-200 font-semibold uppercase tracking-wider">Camera</p>
@@ -413,23 +369,6 @@ export default function Game() {
               </div>
             </div>
 
-            {/* Hints */}
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-yellow-400 text-sm">💡</span>
-                <p className="text-xs text-gray-400 uppercase tracking-wider">Hints</p>
-              </div>
-              <button
-                onClick={() => setHintsEnabled(!hintsEnabled)}
-                className={`w-full py-3 px-3 text-xs rounded-lg transition-all font-bold ${
-                  hintsEnabled
-                    ? 'bg-gradient-to-r from-yellow-600 to-orange-600 text-white shadow-lg'
-                    : 'bg-black/60 text-gray-500 active:bg-black/80'
-                }`}
-              >
-                {hintsEnabled ? 'ON' : 'OFF'}
-              </button>
-            </div>
           </div>
         </SheetContent>
       </Sheet>
@@ -446,8 +385,6 @@ function GameUI({
   spreadPreset,
   setSpreadPreset,
   onCameraPreset,
-  hintsEnabled,
-  setHintsEnabled,
   mobileControlsOpen,
   setMobileControlsOpen,
 }: {
@@ -458,23 +395,16 @@ function GameUI({
   spreadPreset: SpreadPreset;
   setSpreadPreset: (preset: SpreadPreset) => void;
   onCameraPreset: (preset: CameraPreset) => void;
-  hintsEnabled: boolean;
-  setHintsEnabled: (enabled: boolean) => void;
   mobileControlsOpen: boolean;
   setMobileControlsOpen: (open: boolean) => void;
 }) {
   const router = useRouter();
   const { currentPlayer, status, winningLine, moveCount, threats } = gameState;
-  const layerColors = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#95E1D3'];
-
-  // Show threat warning only if hints are enabled
-  const currentPlayerThreats = threats.filter(t => t.player !== currentPlayer);
-  const hasThreats = hintsEnabled && currentPlayerThreats.length > 0;
 
   return (
     <div className="absolute inset-0 pointer-events-none">
       {/* Settings Button - Mobile */}
-      <div className="sm:hidden absolute top-2 right-2 pointer-events-auto z-50">
+      <div className="sm:hidden absolute top-3 right-3 pointer-events-auto z-50">
         <button
           onClick={() => setMobileControlsOpen(!mobileControlsOpen)}
           className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-pink-600 text-white shadow-xl shadow-purple-500/50 flex items-center justify-center text-lg hover:scale-110 active:scale-95 transition-all border-2 border-white/20"
@@ -486,8 +416,8 @@ function GameUI({
 
 
       {/* Top Bar */}
-      <div className="absolute top-0 left-0 right-0 p-2 sm:p-4 pointer-events-auto">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
+      <div className="absolute top-0 left-0 right-0 p-3 sm:p-4 md:p-5 pointer-events-auto">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
           <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={() => router.push('/')}
@@ -502,7 +432,7 @@ function GameUI({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3 w-auto sm:w-auto pr-12 sm:pr-0">
+          <div className="flex items-center gap-2 sm:gap-3 w-auto sm:w-auto">
             {/* Undo Button */}
             <button
               onClick={onUndo}
@@ -532,12 +462,12 @@ function GameUI({
       </div>
 
       {/* Turn Indicator */}
-      <div className="absolute top-14 sm:top-20 left-1/2 -translate-x-1/2 pointer-events-none z-10">
+      <div className="absolute top-16 sm:top-[calc(50%-280px)] md:top-[calc(50%-300px)] left-1/2 sm:left-auto sm:right-3 sm:right-4 md:right-5 sm:translate-x-0 -translate-x-1/2 pointer-events-none z-10 px-4">
         {status === 'playing' && (
           <div className={`
-            flex items-center gap-1.5 sm:gap-3 
-            px-3 sm:px-6 py-1.5 sm:py-3 
-            rounded-xl sm:rounded-2xl 
+            flex items-center gap-1.5 sm:gap-2 
+            px-3 sm:px-4 py-1.5 sm:py-2 
+            rounded-xl sm:rounded-xl 
             backdrop-blur-xl border
             ${currentPlayer === 'X' 
               ? 'bg-red-500/20 border-red-500/40 shadow-lg shadow-red-500/20' 
@@ -545,27 +475,21 @@ function GameUI({
             }
           `}>
             <PlayerIndicator player={currentPlayer} size="lg" />
-            <div className="flex flex-col">
-              <span className="text-white font-bold text-xs sm:text-base">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-white font-bold text-xs sm:text-sm">
                 {currentPlayer === 'X' ? 'Player 1' : 'Player 2'}
               </span>
-              <span className="text-gray-400 text-[9px] sm:text-xs hidden sm:block">your turn</span>
+              <span className="text-gray-400 text-[9px] sm:text-[10px] hidden sm:block">your turn</span>
             </div>
 
-            {/* Threat Warning */}
-            {hasThreats && (
-              <div className="ml-1 sm:ml-2 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg bg-yellow-500/30 text-yellow-400 text-[10px] sm:text-xs animate-pulse">
-                ⚠️
-              </div>
-            )}
           </div>
         )}
 
         {status === 'win' && winningLine && (
-          <div className="flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-3 rounded-2xl bg-yellow-500/20 backdrop-blur-xl border border-yellow-500/40 shadow-lg shadow-yellow-500/20">
+          <div className="flex items-center gap-2 sm:gap-2 px-4 sm:px-4 py-2 sm:py-2 rounded-2xl bg-yellow-500/20 backdrop-blur-xl border border-yellow-500/40 shadow-lg shadow-yellow-500/20">
             <PlayerIndicator player={winningLine.winner} size="lg" />
-            <div className="flex flex-col">
-              <span className="text-yellow-400 font-bold text-sm sm:text-lg">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-yellow-400 font-bold text-sm sm:text-base">
                 🎉 {winningLine.winner === 'X' ? 'Player 1' : 'Player 2'} Wins!
               </span>
               <span className="text-gray-400 text-[10px] sm:text-xs">{moveCount} moves</span>
@@ -574,10 +498,10 @@ function GameUI({
         )}
 
         {status === 'draw' && (
-          <div className="flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-3 rounded-2xl bg-gray-500/20 backdrop-blur-xl border border-gray-500/40">
+          <div className="flex items-center gap-2 sm:gap-2 px-4 sm:px-4 py-2 sm:py-2 rounded-2xl bg-gray-500/20 backdrop-blur-xl border border-gray-500/40">
             <span className="text-2xl">🤝</span>
-            <div className="flex flex-col">
-              <span className="text-white font-bold text-sm sm:text-lg">It's a Draw!</span>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-white font-bold text-sm sm:text-base">It's a Draw!</span>
               <span className="text-gray-400 text-[10px] sm:text-xs">All 64 cells filled</span>
             </div>
           </div>
@@ -585,14 +509,14 @@ function GameUI({
       </div>
 
       {/* Mobile Stats */}
-      <div className="sm:hidden absolute top-12 right-3 pointer-events-none">
+      <div className="sm:hidden absolute top-14 sm:top-16 right-3 sm:right-4 pointer-events-none">
         <div className="bg-black/40 backdrop-blur-sm rounded-full px-2.5 py-1">
           <span className="text-[10px] text-gray-400">{moveCount}/64</span>
         </div>
       </div>
 
       {/* Bottom Controls Hint (Desktop only) */}
-      <div className="hidden sm:block absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 pointer-events-auto">
+      <div className="hidden sm:block absolute bottom-3 sm:bottom-4 md:bottom-5 left-1/2 -translate-x-1/2 pointer-events-auto px-4">
         <div className="bg-black/30 backdrop-blur-sm rounded-full px-4 py-1.5 flex items-center gap-3 text-[10px] text-gray-500">
           <span>🖱️ Drag to rotate</span>
           <span className="text-gray-700">•</span>

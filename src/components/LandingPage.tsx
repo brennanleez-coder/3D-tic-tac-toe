@@ -86,28 +86,88 @@ function createPresetState(
   additionalMoves: Position[] = []
 ): ExtendedGameState {
   const board = createEmptyBoard();
+  const opponent: 'X' | 'O' = winner === 'X' ? 'O' : 'X';
   
-  // Place winning pieces
-  winningLine.forEach(pos => {
-    board[pos.x][pos.y][pos.z] = winner;
-  });
+  // Separate winning moves (save last for final move) and opponent moves
+  const winningMoves = winningLine.slice(0, -1);
+  const finalWinningMove = winningLine[winningLine.length - 1];
   
-  // Place additional moves (for opponent or other pieces)
-  additionalMoves.forEach(pos => {
-    if (board[pos.x][pos.y][pos.z] === null) {
-      board[pos.x][pos.y][pos.z] = winner === 'X' ? 'O' : 'X';
+  // Create a pool of all moves to place
+  const allWinnerMoves = [...winningMoves];
+  const allOpponentMoves = [...additionalMoves];
+  
+  // Ensure we have balanced moves: winner should have one more (the winning move)
+  // So if winner has N moves in winning line, opponent should have N-1 additional moves
+  // Adjust if needed to keep it realistic
+  const totalWinnerMoves = allWinnerMoves.length + 1; // +1 for final move
+  const totalOpponentMoves = allOpponentMoves.length;
+  
+  // Trim moves if needed to keep balance (winner can have 1 more)
+  const maxOpponentMoves = totalWinnerMoves - 1;
+  const opponentMovesToUse = allOpponentMoves.slice(0, maxOpponentMoves);
+  
+  // Create alternating game sequence starting with X
+  const gameSequence: Array<{ player: 'X' | 'O'; position: Position }> = [];
+  let winnerIdx = 0;
+  let opponentIdx = 0;
+  let currentPlayer: 'X' | 'O' = 'X'; // X always starts
+  
+  // Strictly alternate: X, O, X, O, ...
+  // Place moves in order, ensuring winner has exactly one more move
+  while (winnerIdx < allWinnerMoves.length || opponentIdx < opponentMovesToUse.length) {
+    if (currentPlayer === winner && winnerIdx < allWinnerMoves.length) {
+      const pos = allWinnerMoves[winnerIdx];
+      if (board[pos.x][pos.y][pos.z] === null) {
+        gameSequence.push({ player: winner, position: pos });
+        board[pos.x][pos.y][pos.z] = winner;
+        winnerIdx++;
+        currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+      } else {
+        winnerIdx++;
+      }
+    } else if (currentPlayer === opponent && opponentIdx < opponentMovesToUse.length) {
+      const pos = opponentMovesToUse[opponentIdx];
+      if (board[pos.x][pos.y][pos.z] === null) {
+        gameSequence.push({ player: opponent, position: pos });
+        board[pos.x][pos.y][pos.z] = opponent;
+        opponentIdx++;
+        currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+      } else {
+        opponentIdx++;
+      }
+    } else {
+      // If current player has no moves, skip their turn
+      currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
     }
+  }
+  
+  // Place the final winning move (winner always has one more move)
+  board[finalWinningMove.x][finalWinningMove.y][finalWinningMove.z] = winner;
+  
+  // Create move history with timestamps
+  let timestamp = Date.now() - (gameSequence.length + 1) * 1000;
+  const moveHistory = gameSequence.map(move => ({
+    player: move.player,
+    position: move.position,
+    timestamp: timestamp++,
+  }));
+  
+  // Add the final winning move
+  moveHistory.push({
+    player: winner,
+    position: finalWinningMove,
+    timestamp: timestamp,
   });
   
   return {
     board,
-    currentPlayer: winner,
+    currentPlayer: opponent,
     status: 'win',
     winningLine: { positions: winningLine, winner },
-    moveCount: winningLine.length + additionalMoves.length,
-    moveHistory: [],
+    moveCount: moveHistory.length,
+    moveHistory,
     threats: [],
-    lastMovePosition: null,
+    lastMovePosition: finalWinningMove,
   };
 }
 
@@ -119,9 +179,12 @@ function createPreset1(): ExtendedGameState {
     { x: 2, y: 0, z: 0 },
     { x: 3, y: 0, z: 0 },
   ];
+  // X wins with 4 pieces, so O should have 3 moves (X has 1 more)
+  // Realistic game: O tries to block X's row and build own lines
   const additionalMoves: Position[] = [
-    { x: 0, y: 1, z: 0 },
-    { x: 1, y: 1, z: 0 },
+    { x: 1, y: 1, z: 0 }, // O's first move - starts building diagonal
+    { x: 2, y: 1, z: 0 }, // O blocks near X's second piece
+    { x: 0, y: 1, z: 0 }, // O blocks near X's first piece
   ];
   return createPresetState(winningLine, 'X', additionalMoves);
 }
@@ -134,10 +197,12 @@ function createPreset2(): ExtendedGameState {
     { x: 2, y: 2, z: 2 },
     { x: 3, y: 3, z: 3 },
   ];
+  // O wins with 4 pieces, so X should have 3 moves (O has 1 more)
+  // Realistic 3D diagonal game: X tries to block O's diagonal
   const additionalMoves: Position[] = [
-    { x: 0, y: 1, z: 0 },
-    { x: 1, y: 0, z: 0 },
-    { x: 2, y: 0, z: 0 },
+    { x: 1, y: 0, z: 0 }, // X blocks near O's first piece
+    { x: 2, y: 1, z: 1 }, // X blocks near O's second piece
+    { x: 3, y: 2, z: 2 }, // X blocks near O's third piece
   ];
   return createPresetState(winningLine, 'O', additionalMoves);
 }
@@ -150,10 +215,12 @@ function createPreset3(): ExtendedGameState {
     { x: 1, y: 1, z: 2 },
     { x: 1, y: 1, z: 3 },
   ];
+  // X wins with 4 pieces, so O should have 3 moves (X has 1 more)
+  // Realistic vertical column game: O tries to block X's column
   const additionalMoves: Position[] = [
-    { x: 0, y: 1, z: 0 },
-    { x: 2, y: 1, z: 0 },
-    { x: 1, y: 0, z: 0 },
+    { x: 0, y: 1, z: 0 }, // O blocks near X's first piece
+    { x: 2, y: 1, z: 1 }, // O blocks near X's second piece
+    { x: 0, y: 1, z: 2 }, // O blocks near X's third piece
   ];
   return createPresetState(winningLine, 'X', additionalMoves);
 }
@@ -228,206 +295,196 @@ export default function LandingPage({ onStartGame }: LandingPageProps) {
   return (
     <div 
       ref={containerRef}
-      className={`relative w-full min-h-[200vh] bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 transition-opacity duration-500 ${fadeOut ? 'opacity-0' : 'opacity-100'}`}
+      className={`relative w-full bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 transition-opacity duration-500 ${fadeOut ? 'opacity-0' : 'opacity-100'}`}
     >
 
-      {/* Overlay Content - First Section */}
-      <div className="relative min-h-screen flex flex-col items-center justify-center z-10 pointer-events-none">
-        <div className="text-center space-y-6 px-4 animate-fade-in">
+      {/* First Section - Full Viewport */}
+      <div className="relative w-full min-h-screen flex flex-col items-center justify-center z-10 pointer-events-none px-4 sm:px-6 md:px-8 lg:px-12" style={{ scrollSnapAlign: 'start' }}>
+        <div className="w-full max-w-[640px] sm:max-w-3xl lg:max-w-4xl mx-auto text-center animate-fade-in">
           {/* Title */}
-          <h1 className="text-5xl sm:text-7xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent drop-shadow-2xl">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent drop-shadow-2xl mb-2 sm:mb-3">
             QuadCube
           </h1>
           
           {/* Subtitle */}
-          <p className="text-gray-300 text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed">
-            Experience 3D Tic Tac Toe in a stunning <span className="text-purple-400 font-semibold">4×4×4</span> three-dimensional space. Get 4 in a row across any dimension to win!
+          <p className="text-gray-200 text-sm sm:text-base md:text-lg max-w-3xl mx-auto text-center leading-relaxed mb-4 sm:mb-5 md:mb-6">
+            Experience 3D Tic Tac Toe in a stunning <span className="text-purple-300 font-semibold">4×4×4</span> three-dimensional space. Get 4 in a row across any dimension to win!
           </p>
 
           {/* Rules Section */}
-          <div className="mt-12 max-w-3xl mx-auto pointer-events-auto">
-            <div className="bg-black/40 backdrop-blur-xl rounded-2xl p-6 sm:p-8 border border-purple-500/30 shadow-2xl">
-              <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-6 text-center">
-                How to Play
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="pointer-events-auto">
+            <h2 className="text-base sm:text-xl md:text-2xl font-bold text-white mb-3 sm:mb-4 text-center">
+              How to Play
+            </h2>
+            <div className="flex flex-col gap-2 sm:gap-3 md:gap-4 max-w-2xl mx-auto">
                 {/* Rule 1 */}
-                <div className="flex items-start gap-3 p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/15 transition-colors">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-sm">
+                <div className="flex items-start gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl bg-gradient-to-r from-purple-500/15 to-pink-500/10 border border-purple-500/25 shadow-lg">
+                  <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-md">
                     1
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-white font-semibold mb-1">Take Turns</h3>
-                    <p className="text-gray-400 text-sm">Players alternate placing X and O on the 4×4×4 grid</p>
+                  <div className="flex-1 text-left">
+                    <h3 className="text-white font-semibold mb-1 text-sm sm:text-base md:text-lg">Take Turns</h3>
+                    <p className="text-gray-400 text-xs sm:text-sm leading-relaxed">Players alternate placing X and O on the 4×4×4 grid</p>
                   </div>
                 </div>
 
                 {/* Rule 2 */}
-                <div className="flex items-start gap-3 p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/15 transition-colors">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-sm">
+                <div className="flex items-start gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl bg-gradient-to-r from-purple-500/15 to-pink-500/10 border border-purple-500/25 shadow-lg">
+                  <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-md">
                     2
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-white font-semibold mb-1">Get 4 in a Row</h3>
-                    <p className="text-gray-400 text-sm">Win by connecting 4 pieces horizontally, vertically, diagonally, or through 3D space</p>
+                  <div className="flex-1 text-left">
+                    <h3 className="text-white font-semibold mb-1 text-sm sm:text-base md:text-lg">Get 4 in a Row</h3>
+                    <p className="text-gray-400 text-xs sm:text-sm leading-relaxed">Win by connecting 4 pieces horizontally, vertically, diagonally, or through 3D space</p>
                   </div>
                 </div>
 
                 {/* Rule 3 */}
-                <div className="flex items-start gap-3 p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/15 transition-colors">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-sm">
+                <div className="flex items-start gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl bg-gradient-to-r from-purple-500/15 to-pink-500/10 border border-purple-500/25 shadow-lg">
+                  <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-md">
                     3
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-white font-semibold mb-1">Explore 3D Space</h3>
-                    <p className="text-gray-400 text-sm">Rotate and zoom to see all layers and plan your strategy</p>
+                  <div className="flex-1 text-left">
+                    <h3 className="text-white font-semibold mb-1 text-sm sm:text-base md:text-lg">Explore 3D Space</h3>
+                    <p className="text-gray-400 text-xs sm:text-sm leading-relaxed">Rotate and zoom to see all layers and plan your strategy</p>
                   </div>
                 </div>
 
                 {/* Rule 4 */}
-                <div className="flex items-start gap-3 p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/15 transition-colors">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-sm">
+                <div className="flex items-start gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl bg-gradient-to-r from-purple-500/15 to-pink-500/10 border border-purple-500/25 shadow-lg">
+                  <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-md">
                     4
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-white font-semibold mb-1">Think Strategically</h3>
-                    <p className="text-gray-400 text-sm">Block your opponent while building your own winning line</p>
+                  <div className="flex-1 text-left">
+                    <h3 className="text-white font-semibold mb-1 text-sm sm:text-base md:text-lg">Think Strategically</h3>
+                    <p className="text-gray-400 text-xs sm:text-sm leading-relaxed">Block your opponent while building your own winning line</p>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
 
           {/* Start Button */}
-          <div className="mt-12 pointer-events-auto">
+          <div className="mt-4 sm:mt-6 md:mt-8 flex justify-center pointer-events-auto">
             <Button
               onClick={handleStart}
               variant="gradient"
               size="lg"
-              className="text-xl"
+              className="text-base sm:text-lg md:text-xl w-full sm:w-auto px-6 sm:px-8 md:px-10 py-4 sm:py-5 md:py-6"
             >
               Start Game →
             </Button>
           </div>
-
-          {/* Hint for mobile */}
-          {isMobile && (
-            <p className="text-gray-500 text-xs mt-8 pointer-events-auto bg-black/20 backdrop-blur-sm px-4 py-2 rounded-full">
-              Pinch to zoom • Drag to rotate
-            </p>
-          )}
         </div>
 
         {/* Scroll Indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 pointer-events-none animate-bounce">
+        <div className="absolute bottom-6 sm:bottom-1/2 sm:right-6 md:right-8 left-1/2 sm:left-auto sm:translate-x-0 sm:translate-y-1/2 -translate-x-1/2 z-20 pointer-events-none">
           <div className="flex flex-col items-center gap-2 text-gray-400">
-            <span className="text-sm">Scroll to explore</span>
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <span className="text-xs sm:text-sm opacity-70">Scroll to explore</span>
+            <svg className="w-5 h-5 sm:w-6 sm:h-6 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ animation: 'bounce 2s ease-in-out infinite' }}>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
             </svg>
           </div>
         </div>
       </div>
 
-      {/* Second Section - 3D Grid Preview Area */}
-      <div className="relative min-h-screen flex flex-col items-center justify-start pt-32 sm:pt-40 pb-24 z-[1] pointer-events-none px-4">
-        {/* Text header */}
-        <div className="text-center mb-12 pointer-events-none">
-          <div className="bg-black/40 backdrop-blur-sm rounded-2xl px-8 py-6 inline-block border border-purple-500/20">
-            <h2 className="text-3xl sm:text-5xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-3">
+      {/* Second Section - 3D Grid Preview Area - Full Viewport */}
+      <div className="relative w-full min-h-screen flex flex-col items-center justify-center z-[1] pointer-events-none px-4 sm:px-6 md:px-8 lg:px-12" style={{ scrollSnapAlign: 'start' }}>
+        <div className="w-full max-w-6xl mx-auto flex flex-col items-center gap-4 sm:gap-6 md:gap-8">
+          {/* Text header */}
+          <div className="w-full text-center pointer-events-none">
+            <h2 className="text-2xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-2 sm:mb-3">
               Explore the 3D Grid
             </h2>
-            <p className="text-gray-300 text-base sm:text-lg max-w-xl">
+            <p className="text-gray-200 text-sm sm:text-base md:text-lg max-w-2xl mx-auto">
               Rotate, zoom, and explore the interactive 3D tic tac toe board
             </p>
           </div>
-        </div>
 
-        {/* Preset Buttons */}
-        <div className="mb-12 pointer-events-auto px-4 w-full max-w-4xl">
-          <div className="bg-black/70 backdrop-blur-xl rounded-2xl px-6 py-4 border border-purple-500/40 shadow-2xl">
-            <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-4">
+          {/* Preset Buttons */}
+          <div className="pointer-events-auto w-full max-w-5xl mx-auto">
+            <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-4 md:gap-6">
               <Button
                 onClick={() => setSelectedPreset('preset1')}
                 variant={selectedPreset === 'preset1' ? 'default' : 'ghost'}
-                size="default"
+                size="lg"
+                className="text-sm sm:text-base md:text-lg px-6 sm:px-8 py-3"
               >
                 Single Plane Win
               </Button>
               <Button
                 onClick={() => setSelectedPreset('preset2')}
                 variant={selectedPreset === 'preset2' ? 'default' : 'ghost'}
-                size="default"
+                size="lg"
+                className="text-sm sm:text-base md:text-lg px-6 sm:px-8 py-3"
               >
                 Multi-Plane Diagonal
               </Button>
               <Button
                 onClick={() => setSelectedPreset('preset3')}
                 variant={selectedPreset === 'preset3' ? 'default' : 'ghost'}
-                size="default"
+                size="lg"
+                className="text-sm sm:text-base md:text-lg px-6 sm:px-8 py-3"
               >
                 Multi-Plane Straight
               </Button>
             </div>
-            </div>
           </div>
 
-        {/* Resizable 3D Canvas Container */}
-        <div className="w-full max-w-6xl pointer-events-auto">
-          <div 
-            className="relative bg-black/20 backdrop-blur-sm rounded-2xl border border-purple-500/30 shadow-2xl overflow-hidden"
-            style={{ 
-              width: '100%',
-              height: '700px',
-              minHeight: '500px',
-              maxHeight: '90vh',
-              resize: 'both',
-            }}
-          >
-          <Canvas 
+          {/* Resizable 3D Canvas Container */}
+          <div className="w-full max-w-6xl pointer-events-auto flex-1 flex items-center justify-center">
+            <div 
+              className="relative bg-black/25 backdrop-blur-md rounded-2xl border border-purple-500/35 shadow-[0_20px_60px_rgba(0,0,0,0.45)] overflow-hidden w-full"
+              style={{ 
+                height: '60vh',
+                minHeight: '400px',
+                maxHeight: '700px',
+              }}
+            >
+            <Canvas 
               className="w-full h-full"
-            gl={{ 
-              antialias: true,
-              alpha: true,
-              powerPreference: 'default',
-            }}
-            dpr={[1, 2]}
-            onCreated={({ gl }) => {
+              gl={{ 
+                antialias: true,
+                alpha: true,
+                powerPreference: 'default',
+              }}
+              dpr={[1, 2]}
+              onCreated={({ gl }) => {
                 gl.setClearColor(0x000000, 0);
-            }}
-          >
-            <PerspectiveCamera 
-              makeDefault 
-              position={isMobile ? [10, 8, 10] : [8, 6, 8]} 
-              fov={isMobile ? 45 : 50} 
-            />
-            <LandingCamera isMobile={isMobile} />
+              }}
+            >
+              <PerspectiveCamera 
+                makeDefault 
+                position={isMobile ? [10, 8, 10] : [8, 6, 8]} 
+                fov={isMobile ? 45 : 50} 
+              />
+              <LandingCamera isMobile={isMobile} />
 
-            {/* Lighting */}
-            <ambientLight intensity={0.6} />
-            <directionalLight position={[10, 10, 10]} intensity={1} />
-            <directionalLight position={[-10, -5, -10]} intensity={0.4} color="#8B5CF6" />
-            <pointLight position={[0, 5, 0]} intensity={0.6} color="#EC4899" />
+              {/* Lighting */}
+              <ambientLight intensity={0.6} />
+              <directionalLight position={[10, 10, 10]} intensity={1} />
+              <directionalLight position={[-10, -5, -10]} intensity={0.4} color="#8B5CF6" />
+              <pointLight position={[0, 5, 0]} intensity={0.6} color="#EC4899" />
 
-            {/* Game Board - Shows selected preset */}
-            <Board3D 
-              gameState={currentGameState} 
-              onCellClick={() => {}} 
-              visibleLayers={[true, true, true, true]}
-              explodeAmount={30}
-              highlightLayer={null}
-            />
-          </Canvas>
+              {/* Game Board - Shows selected preset */}
+              <Board3D 
+                gameState={currentGameState} 
+                onCellClick={() => {}} 
+                visibleLayers={[true, true, true, true]}
+                explodeAmount={30}
+                highlightLayer={null}
+              />
+            </Canvas>
             
             {/* Resize indicator */}
             <div className="absolute bottom-2 right-2 text-gray-500 text-xs pointer-events-none">
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M22 22H20V20H22V22ZM22 18H20V16H22V18ZM18 22H16V20H18V22ZM18 18H16V16H18V18ZM14 22H12V20H14V22ZM22 14H20V12H22V14Z"/>
               </svg>
-        </div>
+            </div>
           </div>
         </div>
       </div>
+    </div>
 
       {/* Floating Back to Top Button - Always visible when scrolled */}
       {showScrollToTop && (
@@ -435,7 +492,7 @@ export default function LandingPage({ onStartGame }: LandingPageProps) {
           onClick={scrollToTop}
           variant="icon"
           size="icon"
-          className="fixed top-6 right-6 z-30 pointer-events-auto"
+          className="fixed top-4 right-4 sm:top-6 sm:right-6 z-30 pointer-events-auto"
           aria-label="Scroll to top"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -449,4 +506,3 @@ export default function LandingPage({ onStartGame }: LandingPageProps) {
     </div>
   );
 }
-

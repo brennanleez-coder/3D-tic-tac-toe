@@ -1,12 +1,31 @@
 'use client';
 
 import { useCallback, useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
 import Board3D from './Board3D';
 import { Position } from '@/types/game';
 import { ExtendedGameState, createInitialState, makeMove, undoMove } from '@/lib/gameLogic';
+import { Sheet, SheetContent, SheetOverlay } from './ui/sheet';
+import AnimatedBackground from './AnimatedBackground';
+
+// Hook to detect mobile
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640); // sm breakpoint
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  return isMobile;
+}
 
 type SpreadPreset = 'compact' | 'normal' | 'spread' | 'exploded';
 
@@ -31,21 +50,32 @@ const CAMERA_PRESETS: Record<CameraPreset, CameraTarget> = {
   front: { position: [0, 0, 12], lookAt: [0, 0, 0] },
 };
 
-const TURN_TIMER_SECONDS = 15;
-
 // Camera controller component
 function CameraController({ 
   targetPreset,
   onTransitionComplete,
+  isMobile = false,
 }: { 
   targetPreset: CameraPreset | null;
   onTransitionComplete: () => void;
+  isMobile?: boolean;
 }) {
   const { camera } = useThree();
   const controlsRef = useRef<any>(null);
   const targetPosition = useRef<THREE.Vector3 | null>(null);
   const targetLookAt = useRef<THREE.Vector3 | null>(null);
   const transitioning = useRef(false);
+  const initialized = useRef(false);
+
+  // Initialize camera position for mobile on mount
+  useEffect(() => {
+    if (!initialized.current && isMobile) {
+      // Set initial zoomed out position for mobile
+      camera.position.set(10, 8, 12);
+      camera.lookAt(0, 0, 0);
+      initialized.current = true;
+    }
+  }, [camera, isMobile]);
 
   useEffect(() => {
     if (targetPreset) {
@@ -84,61 +114,33 @@ function CameraController({
       enablePan={true}
       enableZoom={true}
       enableRotate={true}
-      minDistance={5}
-      maxDistance={25}
+      minDistance={isMobile ? 8 : 5}
+      maxDistance={isMobile ? 30 : 25}
     />
   );
 }
 
 export default function Game() {
+  const router = useRouter();
   const [gameState, setGameState] = useState<ExtendedGameState>(createInitialState);
   const [spreadPreset, setSpreadPreset] = useState<SpreadPreset>('normal');
   const [cameraPreset, setCameraPreset] = useState<CameraPreset | null>(null);
-  const [timerEnabled, setTimerEnabled] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState(TURN_TIMER_SECONDS);
-  const [hintsEnabled, setHintsEnabled] = useState(true);
-
-  // Timer effect
-  useEffect(() => {
-    if (!timerEnabled || gameState.status !== 'playing') return;
-
-    setTimeRemaining(TURN_TIMER_SECONDS);
-    
-    const interval = setInterval(() => {
-      setTimeRemaining((prev) => {
-        if (prev <= 1) {
-          // Time's up - forfeit turn
-          setGameState((state) => ({
-            ...state,
-            currentPlayer: state.currentPlayer === 'X' ? 'O' : 'X',
-          }));
-          return TURN_TIMER_SECONDS;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [timerEnabled, gameState.status, gameState.currentPlayer]);
+  const [hintsEnabled, setHintsEnabled] = useState(false);
+  const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
+  const [showMobileHint, setShowMobileHint] = useState(true);
+  const isMobile = useIsMobile();
 
   const handleCellClick = useCallback((position: Position) => {
     setGameState((prev) => makeMove(prev, position));
-    if (timerEnabled) {
-      setTimeRemaining(TURN_TIMER_SECONDS);
-    }
-  }, [timerEnabled]);
+  }, []);
 
   const handleReset = useCallback(() => {
     setGameState(createInitialState());
-    setTimeRemaining(TURN_TIMER_SECONDS);
   }, []);
 
   const handleUndo = useCallback(() => {
     setGameState((prev) => undoMove(prev));
-    if (timerEnabled) {
-      setTimeRemaining(TURN_TIMER_SECONDS);
-    }
-  }, [timerEnabled]);
+  }, []);
 
   const handleCameraPreset = useCallback((preset: CameraPreset) => {
     setCameraPreset(preset);
@@ -147,39 +149,9 @@ export default function Game() {
   const canUndo = gameState.moveHistory.length > 0 && gameState.status === 'playing';
 
   return (
-    <div className="relative w-full h-screen bg-slate-950 overflow-hidden">
+    <div className="relative w-full h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 overflow-hidden" style={{ height: '100vh', overflow: 'hidden' }}>
       {/* Animated Background */}
-      <div className="absolute inset-0">
-        <div className="absolute top-1/4 -left-1/4 w-[600px] h-[600px] bg-purple-600/20 rounded-full blur-[120px] animate-pulse" />
-        <div className="absolute bottom-1/4 -right-1/4 w-[500px] h-[500px] bg-pink-600/20 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '1s' }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-cyan-600/10 rounded-full blur-[80px] animate-pulse" style={{ animationDelay: '2s' }} />
-        
-        <div className="absolute inset-0 overflow-hidden">
-          {[...Array(20)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute w-1 h-1 bg-purple-400/30 rounded-full animate-float"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 5}s`,
-                animationDuration: `${8 + Math.random() * 4}s`,
-              }}
-            />
-          ))}
-        </div>
-
-        <div 
-          className="absolute inset-0 opacity-[0.03]"
-          style={{
-            backgroundImage: `
-              linear-gradient(rgba(139, 92, 246, 0.5) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(139, 92, 246, 0.5) 1px, transparent 1px)
-            `,
-            backgroundSize: '50px 50px',
-          }}
-        />
-      </div>
+      <AnimatedBackground />
 
       {/* 3D Canvas */}
       <Canvas 
@@ -192,13 +164,18 @@ export default function Game() {
         }}
         dpr={[1, 2]}
         onCreated={({ gl }) => {
-          gl.setClearColor(0x0a0a1a, 1);
+          gl.setClearColor(0x000000, 0);
         }}
       >
-        <PerspectiveCamera makeDefault position={[6, 5, 8]} fov={50} />
+        <PerspectiveCamera 
+          makeDefault 
+          position={isMobile ? [10, 8, 12] : [6, 5, 8]} 
+          fov={isMobile ? 45 : 50} 
+        />
         <CameraController 
           targetPreset={cameraPreset}
           onTransitionComplete={() => setCameraPreset(null)}
+          isMobile={isMobile}
         />
 
         {/* Lighting */}
@@ -226,12 +203,236 @@ export default function Game() {
         spreadPreset={spreadPreset}
         setSpreadPreset={setSpreadPreset}
         onCameraPreset={handleCameraPreset}
-        timerEnabled={timerEnabled}
-        setTimerEnabled={setTimerEnabled}
-        timeRemaining={timeRemaining}
         hintsEnabled={hintsEnabled}
         setHintsEnabled={setHintsEnabled}
+        mobileControlsOpen={mobileControlsOpen}
+        setMobileControlsOpen={setMobileControlsOpen}
       />
+
+      {/* Mobile Interaction Hint */}
+      {isMobile && showMobileHint && (
+        <div className="sm:hidden absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-auto z-50 max-w-[90%]">
+          <div className="bg-gradient-to-b from-black/90 to-black/80 backdrop-blur-xl rounded-xl p-4 border border-purple-500/40 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <div className="flex-1">
+                <p className="text-white text-sm font-medium mb-1">💡 View Controls</p>
+                <p className="text-gray-300 text-xs leading-relaxed">
+                  Pinch to zoom • Drag to rotate
+                </p>
+              </div>
+              <button
+                onClick={() => setShowMobileHint(false)}
+                className="w-6 h-6 rounded-full bg-black/50 active:bg-black/70 text-gray-400 active:text-white flex items-center justify-center transition-all flex-shrink-0 text-xs"
+                aria-label="Dismiss hint"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Right Side - Controls & Info Panel (Desktop) */}
+      <div className="hidden sm:block absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 pointer-events-auto space-y-3">
+        {/* Combined Info Panel */}
+        <div className="bg-gradient-to-b from-black/60 to-black/40 backdrop-blur-xl rounded-2xl p-8 border border-purple-500/30 shadow-2xl shadow-purple-900/20">
+          {/* Spread Presets */}
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-purple-400 text-sm">📐</span>
+              <p className="text-xs text-gray-300 font-semibold uppercase tracking-wider">Spread</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5">
+              {(['compact', 'normal', 'spread', 'exploded'] as SpreadPreset[]).map((preset) => (
+                <button
+                  key={preset}
+                  onClick={() => setSpreadPreset(preset)}
+                  className={`px-3 py-2 text-xs rounded-lg transition-all capitalize font-medium ${
+                    spreadPreset === preset
+                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
+                      : 'bg-black/50 text-gray-400 hover:bg-black/70 hover:text-white'
+                  }`}
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Camera Presets */}
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-cyan-400 text-sm">📷</span>
+              <p className="text-xs text-gray-300 font-semibold uppercase tracking-wider">Camera</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5">
+              {(['isometric', 'top', 'side', 'front'] as CameraPreset[]).map((preset) => (
+                <button
+                  key={preset}
+                  onClick={() => handleCameraPreset(preset)}
+                  className="px-3 py-2 text-xs rounded-lg transition-all capitalize font-medium bg-black/50 text-gray-400 hover:bg-gradient-to-r hover:from-cyan-600 hover:to-blue-600 hover:text-white"
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Hints Toggle */}
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-yellow-400 text-sm">💡</span>
+              <p className="text-xs text-gray-300 font-semibold uppercase tracking-wider">Hints</p>
+            </div>
+            <button
+              onClick={() => setHintsEnabled(!hintsEnabled)}
+              className={`w-full px-3 py-2 text-xs rounded-lg transition-all font-semibold ${
+                hintsEnabled
+                  ? 'bg-gradient-to-r from-yellow-600 to-orange-600 text-white shadow-lg'
+                  : 'bg-black/50 text-gray-500 hover:bg-black/70'
+              }`}
+            >
+              {hintsEnabled ? 'ON' : 'OFF'}
+            </button>
+          </div>
+
+          {/* Layer Legend */}
+          <div className="pt-4 border-t border-purple-500/20 mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-pink-400 text-sm">🎯</span>
+              <p className="text-xs text-gray-300 font-semibold uppercase tracking-wider">Layers</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5">
+              {[3, 2, 1, 0].map((i) => {
+                const layerColors = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#95E1D3'];
+                return (
+                  <div key={i} className="flex items-center gap-2 bg-black/40 rounded-lg px-3 py-2 hover:bg-black/60 transition-colors">
+                    <div 
+                      className="w-3 h-3 rounded-md shadow-md ring-1 ring-white/10"
+                      style={{ backgroundColor: layerColors[i] }}
+                    />
+                    <span className="text-xs text-gray-300 font-medium">Layer {i + 1}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Move History */}
+          <div className="pt-4 border-t border-purple-500/20">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-blue-400 text-sm">📜</span>
+              <p className="text-xs text-gray-300 font-semibold uppercase tracking-wider">History</p>
+            </div>
+            <div className="flex flex-col gap-2 text-xs max-h-40 overflow-y-auto">
+              {gameState.moveHistory.slice(-5).map((move, i) => (
+                <div key={i} className="flex items-center gap-2 py-2 px-3 bg-black/40 rounded-lg hover:bg-black/60 transition-colors">
+                  <span className={`font-bold text-sm ${move.player === 'X' ? 'text-red-400' : 'text-cyan-400'}`}>
+                    {move.player}
+                  </span>
+                  <span className="text-gray-400 font-mono text-[10px]">
+                    ({move.position.x},{move.position.y},{move.position.z})
+                  </span>
+                </div>
+              ))}
+              {gameState.moveHistory.length === 0 && (
+                <div className="text-gray-500 text-center py-3 text-xs">No moves yet</div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Controls Sheet - Outside GameUI for proper z-index */}
+      <Sheet open={mobileControlsOpen} onOpenChange={setMobileControlsOpen}>
+        <SheetOverlay onClick={() => setMobileControlsOpen(false)} />
+        <SheetContent side="bottom" className="sm:hidden flex flex-col">
+          {/* Header with Close Button */}
+          <div className="flex items-center justify-between px-5 pt-5 pb-3 flex-shrink-0">
+            <h2 className="text-base font-bold text-white">Settings</h2>
+            <button
+              onClick={() => setMobileControlsOpen(false)}
+              className="w-8 h-8 rounded-full bg-black/50 active:bg-black/70 text-gray-400 active:text-white flex items-center justify-center transition-all text-lg"
+              aria-label="Close settings"
+            >
+              ✕
+            </button>
+          </div>
+          {/* Handle */}
+          <div className="flex justify-center pb-3 flex-shrink-0">
+            <div className="w-12 h-1.5 bg-gray-600 rounded-full" />
+          </div>
+
+          {/* Content - Scrollable */}
+          <div className="px-5 pb-8 overflow-y-auto flex-1 min-h-0">
+            {/* Spread */}
+            <div className="mb-5">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-purple-400 text-base">📐</span>
+                <p className="text-xs text-gray-200 font-semibold uppercase tracking-wider">Spread</p>
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                {(['compact', 'normal', 'spread', 'exploded'] as SpreadPreset[]).map((preset) => (
+                  <button
+                    key={preset}
+                    onClick={() => {
+                      setSpreadPreset(preset);
+                      setMobileControlsOpen(false);
+                    }}
+                    className={`py-2.5 px-1.5 text-[10px] rounded-lg transition-all capitalize font-semibold ${
+                      spreadPreset === preset
+                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
+                        : 'bg-black/60 text-gray-400 active:bg-black/80'
+                    }`}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Camera */}
+            <div className="mb-5">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-cyan-400 text-base">📷</span>
+                <p className="text-xs text-gray-200 font-semibold uppercase tracking-wider">Camera</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {(['isometric', 'top', 'side', 'front'] as CameraPreset[]).map((preset) => (
+                  <button
+                    key={preset}
+                    onClick={() => {
+                      handleCameraPreset(preset);
+                      setMobileControlsOpen(false);
+                    }}
+                    className="py-2.5 px-2 text-[10px] rounded-lg transition-all capitalize font-semibold bg-black/60 text-gray-400 active:bg-gradient-to-r active:from-cyan-600 active:to-blue-600 active:text-white"
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Hints */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-yellow-400 text-sm">💡</span>
+                <p className="text-xs text-gray-400 uppercase tracking-wider">Hints</p>
+              </div>
+              <button
+                onClick={() => setHintsEnabled(!hintsEnabled)}
+                className={`w-full py-3 px-3 text-xs rounded-lg transition-all font-bold ${
+                  hintsEnabled
+                    ? 'bg-gradient-to-r from-yellow-600 to-orange-600 text-white shadow-lg'
+                    : 'bg-black/60 text-gray-500 active:bg-black/80'
+                }`}
+              >
+                {hintsEnabled ? 'ON' : 'OFF'}
+              </button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
@@ -245,11 +446,10 @@ function GameUI({
   spreadPreset,
   setSpreadPreset,
   onCameraPreset,
-  timerEnabled,
-  setTimerEnabled,
-  timeRemaining,
   hintsEnabled,
   setHintsEnabled,
+  mobileControlsOpen,
+  setMobileControlsOpen,
 }: {
   gameState: ExtendedGameState;
   onReset: () => void;
@@ -258,12 +458,12 @@ function GameUI({
   spreadPreset: SpreadPreset;
   setSpreadPreset: (preset: SpreadPreset) => void;
   onCameraPreset: (preset: CameraPreset) => void;
-  timerEnabled: boolean;
-  setTimerEnabled: (enabled: boolean) => void;
-  timeRemaining: number;
   hintsEnabled: boolean;
   setHintsEnabled: (enabled: boolean) => void;
+  mobileControlsOpen: boolean;
+  setMobileControlsOpen: (open: boolean) => void;
 }) {
+  const router = useRouter();
   const { currentPlayer, status, winningLine, moveCount, threats } = gameState;
   const layerColors = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#95E1D3'];
 
@@ -273,13 +473,28 @@ function GameUI({
 
   return (
     <div className="absolute inset-0 pointer-events-none">
+      {/* Settings Button - Mobile */}
+      <div className="sm:hidden absolute top-2 right-2 pointer-events-auto z-50">
+        <button
+          onClick={() => setMobileControlsOpen(!mobileControlsOpen)}
+          className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-pink-600 text-white shadow-xl shadow-purple-500/50 flex items-center justify-center text-lg hover:scale-110 active:scale-95 transition-all border-2 border-white/20"
+          aria-label="Settings"
+        >
+          ⚙️
+        </button>
+      </div>
+
+
       {/* Top Bar */}
-      <div className="absolute top-0 left-0 right-0 p-3 sm:p-4 pointer-events-auto">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-3">
-            <h1 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
+      <div className="absolute top-0 left-0 right-0 p-2 sm:p-4 pointer-events-auto">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              onClick={() => router.push('/')}
+              className="text-base sm:text-xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent hover:opacity-80 transition-opacity cursor-pointer"
+            >
               3D Tic-Tac-Toe
-            </h1>
+            </button>
             <div className="hidden sm:flex items-center gap-1.5 bg-black/40 backdrop-blur-sm rounded-full px-3 py-1.5">
               <span className="text-xs text-gray-400">{moveCount}</span>
               <span className="text-gray-600">/</span>
@@ -287,38 +502,42 @@ function GameUI({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 w-auto sm:w-auto pr-12 sm:pr-0">
             {/* Undo Button */}
             <button
               onClick={onUndo}
               disabled={!canUndo}
-              className={`text-white text-xs sm:text-sm font-medium py-2 sm:py-2.5 px-3 sm:px-4 rounded-xl transition-all ${
+              className={`text-white text-base sm:text-base font-medium sm:font-semibold py-3 sm:py-3 px-4 sm:px-6 rounded-xl transition-all flex items-center justify-center min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 ${
                 canUndo 
-                  ? 'bg-gray-700 hover:bg-gray-600 hover:scale-105' 
-                  : 'bg-gray-800 opacity-50 cursor-not-allowed'
+                  ? 'bg-gray-700/80 hover:bg-gray-600 active:scale-95 sm:hover:scale-105' 
+                  : 'bg-gray-800/50 opacity-50 cursor-not-allowed'
               }`}
+              title="Undo"
             >
-              ↩ Undo
+              <span className="sm:hidden text-xl">↩</span>
+              <span className="hidden sm:inline">↩ Undo</span>
             </button>
 
             {/* Reset Button */}
             <button
               onClick={onReset}
-              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white text-sm sm:text-base font-semibold py-2.5 sm:py-3 px-5 sm:px-8 rounded-xl transition-all hover:scale-105 shadow-lg shadow-purple-500/25 border border-white/10"
+              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white text-base sm:text-base font-medium sm:font-semibold py-3 sm:py-3 px-4 sm:px-10 rounded-xl transition-all active:scale-95 sm:hover:scale-105 shadow-md sm:shadow-lg shadow-purple-500/20 sm:shadow-purple-500/25 border border-white/10 flex items-center justify-center min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0"
+              title="Reset Game"
             >
-              Reset Game
+              <span className="sm:hidden text-xl">🔄</span>
+              <span className="hidden sm:inline">Reset Game</span>
             </button>
           </div>
         </div>
       </div>
 
       {/* Turn Indicator */}
-      <div className="absolute top-16 sm:top-20 left-1/2 -translate-x-1/2 pointer-events-none">
+      <div className="absolute top-14 sm:top-20 left-1/2 -translate-x-1/2 pointer-events-none z-10">
         {status === 'playing' && (
           <div className={`
-            flex items-center gap-2 sm:gap-3 
-            px-4 sm:px-6 py-2 sm:py-3 
-            rounded-2xl 
+            flex items-center gap-1.5 sm:gap-3 
+            px-3 sm:px-6 py-1.5 sm:py-3 
+            rounded-xl sm:rounded-2xl 
             backdrop-blur-xl border
             ${currentPlayer === 'X' 
               ? 'bg-red-500/20 border-red-500/40 shadow-lg shadow-red-500/20' 
@@ -327,25 +546,16 @@ function GameUI({
           `}>
             <PlayerIndicator player={currentPlayer} size="lg" />
             <div className="flex flex-col">
-              <span className="text-white font-bold text-sm sm:text-base">
+              <span className="text-white font-bold text-xs sm:text-base">
                 {currentPlayer === 'X' ? 'Player 1' : 'Player 2'}
               </span>
-              <span className="text-gray-400 text-[10px] sm:text-xs">your turn</span>
+              <span className="text-gray-400 text-[9px] sm:text-xs hidden sm:block">your turn</span>
             </div>
-            
-            {/* Timer */}
-            {timerEnabled && (
-              <div className={`ml-2 px-2 py-1 rounded-lg text-sm font-mono ${
-                timeRemaining <= 5 ? 'bg-red-500/30 text-red-400 animate-pulse' : 'bg-black/30 text-white'
-              }`}>
-                {timeRemaining}s
-              </div>
-            )}
 
             {/* Threat Warning */}
             {hasThreats && (
-              <div className="ml-2 px-2 py-1 rounded-lg bg-yellow-500/30 text-yellow-400 text-xs animate-pulse">
-                ⚠️ Block!
+              <div className="ml-1 sm:ml-2 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg bg-yellow-500/30 text-yellow-400 text-[10px] sm:text-xs animate-pulse">
+                ⚠️
               </div>
             )}
           </div>
@@ -375,122 +585,14 @@ function GameUI({
       </div>
 
       {/* Mobile Stats */}
-      <div className="sm:hidden absolute bottom-14 left-3 pointer-events-none">
+      <div className="sm:hidden absolute top-12 right-3 pointer-events-none">
         <div className="bg-black/40 backdrop-blur-sm rounded-full px-2.5 py-1">
           <span className="text-[10px] text-gray-400">{moveCount}/64</span>
         </div>
       </div>
 
-      {/* Left Side - Controls */}
-      <div className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 pointer-events-auto space-y-4">
-        {/* Spread Presets */}
-        <div className="bg-black/50 backdrop-blur-xl rounded-2xl p-3 sm:p-4 border border-purple-500/20">
-          <p className="text-[10px] sm:text-xs text-gray-400 mb-3 text-center font-medium uppercase tracking-wider">Spread</p>
-          <div className="flex flex-col gap-1.5">
-            {(['compact', 'normal', 'spread', 'exploded'] as SpreadPreset[]).map((preset) => (
-              <button
-                key={preset}
-                onClick={() => setSpreadPreset(preset)}
-                className={`px-3 py-2 text-[11px] sm:text-xs rounded-lg transition-all capitalize font-medium ${
-                  spreadPreset === preset
-                    ? 'bg-purple-600 text-white shadow-md shadow-purple-500/30'
-                    : 'bg-black/40 text-gray-400 hover:bg-black/60 hover:text-white'
-                }`}
-              >
-                {preset}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Camera Presets */}
-        <div className="bg-black/50 backdrop-blur-xl rounded-2xl p-3 sm:p-4 border border-purple-500/20">
-          <p className="text-[10px] sm:text-xs text-gray-400 mb-3 text-center font-medium uppercase tracking-wider">Camera</p>
-          <div className="flex flex-col gap-1.5">
-            {(['isometric', 'top', 'side', 'front'] as CameraPreset[]).map((preset) => (
-              <button
-                key={preset}
-                onClick={() => onCameraPreset(preset)}
-                className="px-3 py-2 text-[11px] sm:text-xs rounded-lg transition-all capitalize font-medium bg-black/40 text-gray-400 hover:bg-purple-600 hover:text-white hover:shadow-md hover:shadow-purple-500/30"
-              >
-                {preset}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Timer Toggle */}
-        <div className="bg-black/50 backdrop-blur-xl rounded-2xl p-3 sm:p-4 border border-purple-500/20">
-          <p className="text-[10px] sm:text-xs text-gray-400 mb-3 text-center font-medium uppercase tracking-wider">Timer</p>
-          <button
-            onClick={() => setTimerEnabled(!timerEnabled)}
-            className={`w-full px-3 py-2.5 text-[11px] sm:text-xs rounded-lg transition-all font-semibold ${
-              timerEnabled
-                ? 'bg-green-600 text-white shadow-md shadow-green-500/30'
-                : 'bg-black/40 text-gray-400 hover:bg-black/60'
-            }`}
-          >
-            {timerEnabled ? 'ON' : 'OFF'}
-          </button>
-        </div>
-
-        {/* Hints Toggle */}
-        <div className="bg-black/50 backdrop-blur-xl rounded-2xl p-3 sm:p-4 border border-purple-500/20">
-          <p className="text-[10px] sm:text-xs text-gray-400 mb-3 text-center font-medium uppercase tracking-wider">Hints</p>
-          <button
-            onClick={() => setHintsEnabled(!hintsEnabled)}
-            className={`w-full px-3 py-2.5 text-[11px] sm:text-xs rounded-lg transition-all font-semibold ${
-              hintsEnabled
-                ? 'bg-yellow-600 text-white shadow-md shadow-yellow-500/30'
-                : 'bg-black/40 text-gray-400 hover:bg-black/60'
-            }`}
-          >
-            {hintsEnabled ? 'ON' : 'OFF'}
-          </button>
-        </div>
-      </div>
-
-      {/* Right Side - Legend */}
-      <div className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 pointer-events-auto space-y-4">
-        {/* Layer Legend */}
-        <div className="bg-black/50 backdrop-blur-xl rounded-2xl p-3 sm:p-4 border border-purple-500/20">
-          <p className="text-[10px] sm:text-xs text-gray-400 mb-3 text-center font-medium uppercase tracking-wider">Layers</p>
-          <div className="flex flex-col gap-2.5">
-            {[3, 2, 1, 0].map((i) => (
-              <div key={i} className="flex items-center gap-2.5">
-                <div 
-                  className="w-4 h-4 rounded-md shadow-sm"
-                  style={{ backgroundColor: layerColors[i] }}
-                />
-                <span className="text-xs text-gray-300 font-medium">{i + 1}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Move History */}
-        <div className="bg-black/50 backdrop-blur-xl rounded-2xl p-3 sm:p-4 border border-purple-500/20 max-h-40 overflow-y-auto">
-          <p className="text-[10px] sm:text-xs text-gray-400 mb-3 text-center font-medium uppercase tracking-wider">History</p>
-          <div className="flex flex-col gap-1.5 text-[10px] sm:text-xs">
-            {gameState.moveHistory.slice(-5).map((move, i) => (
-              <div key={i} className="flex items-center gap-2 py-0.5">
-                <span className={`font-bold ${move.player === 'X' ? 'text-red-400' : 'text-cyan-400'}`}>
-                  {move.player}
-                </span>
-                <span className="text-gray-500 font-mono">
-                  ({move.position.x},{move.position.y},{move.position.z})
-                </span>
-              </div>
-            ))}
-            {gameState.moveHistory.length === 0 && (
-              <span className="text-gray-500 text-center">No moves yet</span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Bottom Controls Hint */}
-      <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 pointer-events-auto">
+      {/* Bottom Controls Hint (Desktop only) */}
+      <div className="hidden sm:block absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 pointer-events-auto">
         <div className="bg-black/30 backdrop-blur-sm rounded-full px-4 py-1.5 flex items-center gap-3 text-[10px] text-gray-500">
           <span>🖱️ Drag to rotate</span>
           <span className="text-gray-700">•</span>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { CellValue, Player, Position } from '@/types/game';
 
@@ -39,6 +39,17 @@ function XMarker({ isWinning, isNewlyPlaced, isDimmed }: { isWinning: boolean; i
   const groupRef = useRef<THREE.Group>(null);
   const animationProgress = useRef(0);
   const dropHeight = 3;
+
+  // Reset animation when newly placed changes
+  useEffect(() => {
+    if (isNewlyPlaced) {
+      animationProgress.current = 0;
+      if (groupRef.current) {
+        groupRef.current.scale.setScalar(0.01);
+        groupRef.current.position.y = dropHeight;
+      }
+    }
+  }, [isNewlyPlaced]);
 
   useFrame((_, delta) => {
     if (!groupRef.current) return;
@@ -99,6 +110,17 @@ function OMarker({ isWinning, isNewlyPlaced, isDimmed }: { isWinning: boolean; i
   const meshRef = useRef<THREE.Mesh>(null);
   const animationProgress = useRef(0);
   const dropHeight = 3;
+
+  // Reset animation when newly placed changes
+  useEffect(() => {
+    if (isNewlyPlaced) {
+      animationProgress.current = 0;
+      if (meshRef.current) {
+        meshRef.current.scale.setScalar(0.01);
+        meshRef.current.position.y = dropHeight;
+      }
+    }
+  }, [isNewlyPlaced]);
 
   useFrame((_, delta) => {
     if (!meshRef.current) return;
@@ -328,10 +350,13 @@ export default function Cell({
   useEffect(() => {
     if (isNewlyPlaced) {
       setWasNewlyPlaced(true);
+    } else if (value === null) {
+      // Reset when cell becomes empty (game reset)
+      setWasNewlyPlaced(false);
     }
-  }, [isNewlyPlaced]);
+  }, [isNewlyPlaced, value]);
 
-  const handleClick = (e: THREE.Event) => {
+  const handleClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
     if (!value && !isGameOver) {
       onClick(position);
@@ -363,8 +388,8 @@ export default function Cell({
           isHovered={isHovered}
         />
       )}
-      {value === 'X' && <XMarker isWinning={isWinning} isNewlyPlaced={wasNewlyPlaced} isDimmed={isDimmed} />}
-      {value === 'O' && <OMarker isWinning={isWinning} isNewlyPlaced={wasNewlyPlaced} isDimmed={isDimmed} />}
+      {value === 'X' && <XMarker key={`x-${position.x}-${position.y}-${position.z}`} isWinning={isWinning} isNewlyPlaced={wasNewlyPlaced} isDimmed={isDimmed} />}
+      {value === 'O' && <OMarker key={`o-${position.x}-${position.y}-${position.z}`} isWinning={isWinning} isNewlyPlaced={wasNewlyPlaced} isDimmed={isDimmed} />}
     </group>
   );
 }

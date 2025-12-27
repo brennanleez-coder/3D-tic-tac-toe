@@ -176,10 +176,10 @@ export default function Board3D({
       {cells.map(({ position, worldPosition, layer }) => {
         const isWinningCell = isWinningPosition(gameState.winningLine, position);
         const threat = isThreatPosition(gameState.threats, position);
-        const isNewlyPlaced = gameState.lastMovePosition && 
+        const isNewlyPlaced: boolean = !!(gameState.lastMovePosition && 
           position.x === gameState.lastMovePosition.x &&
           position.y === gameState.lastMovePosition.y &&
-          position.z === gameState.lastMovePosition.z;
+          position.z === gameState.lastMovePosition.z);
         
         // Dim non-winning cells when game is won
         const isDimmed = isGameWon && !isWinningCell;
